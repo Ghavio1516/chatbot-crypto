@@ -58,7 +58,6 @@ export default function Page() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length, loading]);
 
-  // kirim pesan
   const send = async () => {
     const prompt = input.trim();
     if (!prompt || loading) return;
@@ -71,29 +70,26 @@ export default function Page() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, sessionId: getSessionId(), userId: getUserId() }),
+        body: JSON.stringify({ prompt, sessionId: getSessionId(), userId: getUserId() })
       });
 
       let output = "";
       if (res.ok) {
-        const data = (await res.json()) as { output?: string; detail?: string };
-        if (data?.output === "error") {
+        const data = (await res.json()) as { output?: string; detail?: string; success?: boolean };
+        if (data?.success === false || data?.output === "error") {
           output = `⚠️ Terjadi error di server.\n\nDetail: ${data.detail ?? "tidak diketahui"}`;
         } else {
           output = data?.output ?? "";
         }
       } else {
-        output = `Ups, server balas status ${res.status}.`;
+        output = `⚠️ HTTP ${res.status} dari server.`;
       }
 
       if (!output) output = EXAMPLE;
-
       setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", content: output }]);
-    } catch (e: any) {
-      setMessages((m) => [
-        ...m,
-        { id: crypto.randomUUID(), role: "assistant", content: "Gagal terhubung: " + String(e?.message ?? e) },
-      ]);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", content: "⚠️ Gagal terhubung: " + msg }]);
     } finally {
       setLoading(false);
       inputRef.current?.focus();
