@@ -3,10 +3,7 @@
 import { useEffect, useRef } from "react";
 
 type TVSymbol = { proName: string; title?: string };
-type Props = {
-  symbols?: TVSymbol[];
-  dark?: boolean;
-};
+type Props = { symbols?: TVSymbol[]; dark?: boolean };
 
 export default function TradingViewTape({
   dark = true,
@@ -15,48 +12,52 @@ export default function TradingViewTape({
     { proName: "BINANCE:ETHUSDT", title: "ETH" },
     { proName: "BINANCE:SOLUSDT", title: "SOL" },
     { proName: "BINANCE:XRPUSDT", title: "XRP" },
-    { proName: "BINANCE:BNBUSDT", title: "BNB" },
-    { proName: "BINANCE:ADAUSDT", title: "ADA" },
-    { proName: "BINANCE:DOGEUSDT", title: "DOGE" }
-  ]
+  ],
 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const didInit = useRef(false); // cegah init ganda (StrictMode/dev)
 
   useEffect(() => {
-    const mount = containerRef.current; // snapshot
-    if (!mount) return;
+    const host = boxRef.current;
+    if (!host || didInit.current) return;
+    didInit.current = true;
 
-    mount.innerHTML = "";
+    try {
+      // bersihkan sisa render
+      host.innerHTML = "";
 
-    const script = document.createElement("script");
-    script.src =
-      "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
-    script.type = "text/javascript";
-    script.async = true;
+      const script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
+      script.async = true;
+      script.type = "text/javascript";
 
-    const cfg = {
-      symbols,
-      showSymbolLogo: true,
-      isTransparent: true,
-      displayMode: "regular",
-      colorTheme: dark ? "dark" : "light",
-      locale: "en"
-    };
+      const cfg = {
+        symbols: Array.isArray(symbols) ? symbols : [],
+        showSymbolLogo: true,
+        isTransparent: true,
+        displayMode: "regular",
+        colorTheme: dark ? "dark" : "light",
+        locale: "en",
+      };
+      script.innerHTML = JSON.stringify(cfg);
 
-    script.innerHTML = JSON.stringify(cfg);
-    mount.appendChild(script);
+      // delay 1 tick supaya DOM siap & menghindari race di sebagian browser
+      const t = setTimeout(() => {
+        host.appendChild(script);
+      }, 0);
 
-    return () => {
-      while (mount.firstChild) mount.removeChild(mount.firstChild);
-    };
-  }, [symbols, dark]); // jelas & sederhana
+      return () => {
+        clearTimeout(t);
+        host.innerHTML = "";
+      };
+    } catch {
+      // swallow—biar tidak crash seluruh app
+    }
+  }, [dark, symbols]);
 
   return (
     <div className="tradingview-widget-container">
-      <div
-        ref={containerRef}
-        className="tradingview-widget-container__widget"
-      />
+      <div ref={boxRef} className="tradingview-widget-container__widget" />
     </div>
   );
 }

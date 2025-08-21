@@ -5,6 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import clsx from "classnames";
+import TradingViewTape from "@/components/TradingViewTape";
+import TVMini from "@/components/TVMini";
 
 type Message = { id: string; role: "user" | "assistant" | "system"; content: string };
 
@@ -128,6 +130,9 @@ export default function Page() {
     }
   };
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   return (
     <div className="h-full">
       {/* APP BAR */}
@@ -213,6 +218,27 @@ export default function Page() {
               </ul>
             </div>
           </div>
+                
+          <aside className="hidden lg:block lg:col-span-4">
+            <div className="sticky top-16">
+              <div className="max-h-[calc(100vh-8rem)] overflow-y-auto pr-1 space-y-3">
+                {mounted && (
+                  <>
+                    <div className="rounded-2xl border ... p-2">
+                      <TradingViewTape dark={true} />
+                    </div>
+                    <div className="rounded-2xl border ... p-3 space-y-3">
+                      <div className="text-xs text-neutral-500 px-1">Top coins</div>
+                      <TVMini symbol="BINANCE:BTCUSDT" />
+                      <TVMini symbol="BINANCE:ETHUSDT" />
+                      <TVMini symbol="BINANCE:SOLUSDT" />
+                      <TVMini symbol="BINANCE:XRPUSDT" />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </aside>
         </div>
       </main>
 
