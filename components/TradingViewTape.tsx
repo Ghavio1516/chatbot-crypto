@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
+type TVSymbol = { proName: string; title?: string };
 type Props = {
-  symbols?: { proName: string; title?: string }[];
+  symbols?: TVSymbol[];
   dark?: boolean;
 };
 
@@ -22,35 +23,40 @@ export default function TradingViewTape({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const mount = containerRef.current; // snapshot
+    if (!mount) return;
 
-    // bersihkan widget lama (kalau re-render)
-    containerRef.current.innerHTML = "";
+    mount.innerHTML = "";
 
     const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
+    script.src =
+      "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
     script.type = "text/javascript";
     script.async = true;
-    script.innerHTML = JSON.stringify({
+
+    const cfg = {
       symbols,
       showSymbolLogo: true,
       isTransparent: true,
       displayMode: "regular",
       colorTheme: dark ? "dark" : "light",
       locale: "en"
-    });
+    };
 
-    containerRef.current.appendChild(script);
+    script.innerHTML = JSON.stringify(cfg);
+    mount.appendChild(script);
 
     return () => {
-      // cleanup
-      containerRef.current && (containerRef.current.innerHTML = "");
+      while (mount.firstChild) mount.removeChild(mount.firstChild);
     };
-  }, [dark, JSON.stringify(symbols)]); // re-init kalau daftar simbol/tema berubah
+  }, [symbols, dark]); // jelas & sederhana
 
   return (
     <div className="tradingview-widget-container">
-      <div ref={containerRef} className="tradingview-widget-container__widget" />
+      <div
+        ref={containerRef}
+        className="tradingview-widget-container__widget"
+      />
     </div>
   );
 }

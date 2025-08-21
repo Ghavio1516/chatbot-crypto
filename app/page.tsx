@@ -20,7 +20,7 @@ function getSessionId() {
   try {
     const s = localStorage.getItem("sid");
     if (s) return s;
-    const n = `sid_${crypto.randomUUID()}`;
+    const n = `sid_${safeUUID()}`;
     localStorage.setItem("sid", n);
     return n;
   } catch {
@@ -35,15 +35,35 @@ function getUserId() {
   const found = parts.find((p) => p.startsWith(name));
   if (found) return found.slice(name.length);
 
-  const uid = `u_${crypto.randomUUID()}`;
+  const uid = `u_${safeUUID()}`;
   document.cookie = `uid=${uid}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
   return uid;
+}
+
+function safeUUID(): string {
+  // 1) browser modern
+  if (typeof globalThis !== "undefined" && globalThis.crypto) {
+    const c = globalThis.crypto as Crypto;
+    if (typeof (c as any).randomUUID === "function") return (c as any).randomUUID();
+
+    if (typeof c.getRandomValues === "function") {
+      // RFC4122 v4 (sederhana)
+      const bytes = new Uint8Array(16);
+      c.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40; // version
+      bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+      const toHex = (n: number) => n.toString(16).padStart(2, "0");
+      const b = Array.from(bytes, toHex).join("");
+      return `${b.slice(0,8)}-${b.slice(8,12)}-${b.slice(12,16)}-${b.slice(16,20)}-${b.slice(20)}`;
+    }
+  }
+  return `id_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: crypto.randomUUID(),
+      id: safeUUID(),
       role: "system",
       content: "Halo! Tanyakan apa saja tentang Ethereum",
     },
@@ -62,7 +82,7 @@ export default function Page() {
     const prompt = input.trim();
     if (!prompt || loading) return;
 
-    setMessages((m) => [...m, { id: crypto.randomUUID(), role: "user", content: prompt }]);
+    setMessages((m) => [...m, { id: safeUUID(), role: "user", content: prompt }]);
     setInput("");
     setLoading(true);
 
@@ -86,10 +106,10 @@ export default function Page() {
       }
 
       if (!output) output = EXAMPLE;
-      setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", content: output }]);
+      setMessages((m) => [...m, { id: safeUUID(), role: "assistant", content: output }]);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", content: "⚠️ Gagal terhubung: " + msg }]);
+      setMessages((m) => [...m, { id: safeUUID(), role: "assistant", content: "⚠️ Gagal terhubung: " + msg }]);
     } finally {
       setLoading(false);
       inputRef.current?.focus();
