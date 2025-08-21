@@ -29,6 +29,17 @@ function getSessionId() {
   }
 }
 
+function getUserId() {
+  const name = "uid=";
+  const parts = document.cookie.split(";").map((s) => s.trim());
+  const found = parts.find((p) => p.startsWith(name));
+  if (found) return found.slice(name.length);
+
+  const uid = `u_${safeUUID()}`;
+  document.cookie = `uid=${uid}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+  return uid;
+}
+
 function safeUUID(): string {
   const hasCrypto =
     typeof globalThis !== "undefined" &&
@@ -37,9 +48,11 @@ function safeUUID(): string {
   if (hasCrypto) {
     const c = (globalThis as { crypto: Crypto }).crypto;
 
+    // gunakan getRandomValues kalau tersedia
     if (typeof c.getRandomValues === "function") {
       const bytes = new Uint8Array(16);
       c.getRandomValues(bytes);
+      // RFC4122 v4
       bytes[6] = (bytes[6] & 0x0f) | 0x40;
       bytes[8] = (bytes[8] & 0x3f) | 0x80;
 
@@ -49,6 +62,7 @@ function safeUUID(): string {
     }
   }
 
+  // fallback universal (tanpa crypto)
   return `id_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
