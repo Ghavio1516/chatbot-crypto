@@ -5,8 +5,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import clsx from "classnames";
-import TradingViewTape from "@/components/TradingViewTape";
-import TVMini from "@/components/TVMini";
 
 type Message = { id: string; role: "user" | "assistant" | "system"; content: string };
 
@@ -41,22 +39,29 @@ function getUserId() {
 }
 
 function safeUUID(): string {
-  // 1) browser modern
-  if (typeof globalThis !== "undefined" && globalThis.crypto) {
-    const c = globalThis.crypto as Crypto;
-    if (typeof (c as any).randomUUID === "function") return (c as any).randomUUID();
+  // cek dukungan crypto di browser
+  const hasCrypto =
+    typeof globalThis !== "undefined" &&
+    typeof (globalThis as { crypto?: Crypto }).crypto !== "undefined";
 
+  if (hasCrypto) {
+    const c = (globalThis as { crypto: Crypto }).crypto;
+
+    // gunakan getRandomValues kalau tersedia
     if (typeof c.getRandomValues === "function") {
-      // RFC4122 v4 (sederhana)
       const bytes = new Uint8Array(16);
       c.getRandomValues(bytes);
-      bytes[6] = (bytes[6] & 0x0f) | 0x40; // version
-      bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+      // RFC4122 v4
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
       const toHex = (n: number) => n.toString(16).padStart(2, "0");
       const b = Array.from(bytes, toHex).join("");
-      return `${b.slice(0,8)}-${b.slice(8,12)}-${b.slice(12,16)}-${b.slice(16,20)}-${b.slice(20)}`;
+      return `${b.slice(0, 8)}-${b.slice(8, 12)}-${b.slice(12, 16)}-${b.slice(16, 20)}-${b.slice(20)}`;
     }
   }
+
+  // fallback universal (tanpa crypto)
   return `id_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
@@ -208,27 +213,6 @@ export default function Page() {
               </ul>
             </div>
           </div>
-
-          {/* ===== Right: Sidebar ===== */}
-          <aside className="hidden lg:block lg:col-span-4">
-            <div className="sticky top-16">
-              <div className="max-h-[calc(100vh-8rem)] overflow-y-auto pr-1 space-y-3">
-                {/* Ticker Tape */}
-                <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/60 dark:bg-neutral-900/60 backdrop-blur p-2">
-                  <TradingViewTape dark={true} />
-                </div>
-
-                {/* Mini charts */}
-                <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/60 dark:bg-neutral-900/60 backdrop-blur p-3 space-y-3">
-                  <div className="text-xs text-neutral-500 px-1">Top coins (1D)</div>
-                  <TVMini symbol="BINANCE:BTCUSDT" />
-                  <TVMini symbol="BINANCE:ETHUSDT" />
-                  <TVMini symbol="BINANCE:SOLUSDT" />
-                  <TVMini symbol="BINANCE:XRPUSDT" />
-                </div>
-              </div>
-            </div>
-          </aside>
         </div>
       </main>
 
