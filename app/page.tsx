@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import clsx from "classnames";
 //import TradingViewTape from "@/components/TradingViewTape";
+//import TradingViewWidget from "@/components/TradingViewWidget";
 import TVMini from "@/components/TVMini";
 
 type Message = { id: string; role: "user" | "assistant" | "system"; content: string };
@@ -28,20 +29,7 @@ function getSessionId() {
   }
 }
 
-// simpan userId sebagai cookie supaya tetap sama di device yang sama
-function getUserId() {
-  const name = "uid=";
-  const parts = document.cookie.split(";").map((s) => s.trim());
-  const found = parts.find((p) => p.startsWith(name));
-  if (found) return found.slice(name.length);
-
-  const uid = `u_${safeUUID()}`;
-  document.cookie = `uid=${uid}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-  return uid;
-}
-
 function safeUUID(): string {
-  // cek dukungan crypto di browser
   const hasCrypto =
     typeof globalThis !== "undefined" &&
     typeof (globalThis as { crypto?: Crypto }).crypto !== "undefined";
@@ -49,11 +37,9 @@ function safeUUID(): string {
   if (hasCrypto) {
     const c = (globalThis as { crypto: Crypto }).crypto;
 
-    // gunakan getRandomValues kalau tersedia
     if (typeof c.getRandomValues === "function") {
       const bytes = new Uint8Array(16);
       c.getRandomValues(bytes);
-      // RFC4122 v4
       bytes[6] = (bytes[6] & 0x0f) | 0x40;
       bytes[8] = (bytes[8] & 0x3f) | 0x80;
 
@@ -63,7 +49,6 @@ function safeUUID(): string {
     }
   }
 
-  // fallback universal (tanpa crypto)
   return `id_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
@@ -80,7 +65,6 @@ export default function Page() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // auto-scroll ke bawah
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length, loading]);
@@ -112,7 +96,6 @@ export default function Page() {
         output = `⚠️ HTTP ${res.status} dari server.`;
       }
 
-      if (!output) output = EXAMPLE;
       setMessages((m) => [...m, { id: safeUUID(), role: "assistant", content: output }]);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -130,12 +113,8 @@ export default function Page() {
     }
   };
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
   return (
     <div className="h-full">
-      {/* APP BAR */}
       <header className="sticky top-0 z-10 border-b border-neutral-200/70 dark:border-neutral-800/70 bg-white/70 dark:bg-neutral-950/70 backdrop-blur supports-[backdrop-filter]:bg-white/50">
         <div className="mx-auto max-w-7xl px-6 h-14 flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500" />
@@ -146,19 +125,13 @@ export default function Page() {
         </div>
       </header>
 
-      {/* BODY pakai grid */}
       <main className="mx-auto max-w-7xl px-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-4 mb-28">
-          {/* ===== Left: Chat ===== */}
           <div className="lg:col-span-8">
-            <div
-              ref={scrollRef}
-              className="h-[calc(100vh-10rem)] overflow-y-auto rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 shadow-sm"
-            >
+            <div ref={scrollRef} className="h-[calc(100vh-10rem)] overflow-y-auto rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 shadow-sm">
               <ul className="p-4 md:p-6 space-y-6 pb-32">
                 {messages.map((m) => (
                   <li key={m.id} className="flex items-start gap-3">
-                    {/* avatar */}
                     <div
                       className={clsx(
                         "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white",
@@ -174,9 +147,7 @@ export default function Page() {
                       {m.role === "assistant" ? "A" : m.role === "user" ? "U" : "S"}
                     </div>
 
-                    {/* bubble */}
-                    <article
-                      className={clsx(
+                    <article className={clsx(
                         "max-w-[85%] rounded-2xl px-4 py-3 markdown",
                         m.role === "assistant"
                           ? "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/60"
@@ -192,21 +163,9 @@ export default function Page() {
                       ) : (
                         <p className="whitespace-pre-wrap">{m.content}</p>
                       )}
-
-                      {m.role === "assistant" && (
-                        <div className="mt-2">
-                          <button
-                            onClick={() => navigator.clipboard.writeText(m.content)}
-                            className="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 underline"
-                          >
-                            Salin jawaban
-                          </button>
-                        </div>
-                      )}
                     </article>
                   </li>
                 ))}
-
                 {loading && (
                   <li className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-lg bg-emerald-500 text-white flex items-center justify-center">A</div>
@@ -218,31 +177,23 @@ export default function Page() {
               </ul>
             </div>
           </div>
-                
+
           <aside className="hidden lg:block lg:col-span-4">
             <div className="sticky top-16">
               <div className="max-h-[calc(100vh-8rem)] overflow-y-auto pr-1 space-y-3">
-                {mounted && (
-                  <>
-                    {/* <div className="rounded-2xl border ... p-2">
-                      <TradingViewTape dark={true} />
-                    </div> */}
-                    <div className="rounded-2xl border ... p-3 space-y-3">
-                      <div className="text-xs text-neutral-500 px-1">Top coins</div>
-                      <TVMini symbol="BINANCE:BTCUSDT" />
-                      <TVMini symbol="BINANCE:ETHUSDT" />
-                      <TVMini symbol="BINANCE:SOLUSDT" />
-                      <TVMini symbol="BINANCE:XRPUSDT" />
-                    </div>
-                  </>
-                )}
+                <div className="rounded-2xl border p-3 space-y-3">
+                  <div className="text-xs text-neutral-500 px-1">Top coins</div>
+                  <TVMini symbol="BINANCE:BTCUSDT" />
+                  <TVMini symbol="BINANCE:ETHUSDT" />
+                  <TVMini symbol="BINANCE:SOLUSDT" />
+                  <TVMini symbol="BINANCE:XRPUSDT" />
+                </div>
               </div>
             </div>
           </aside>
         </div>
       </main>
 
-      {/* COMPOSER */}
       <div className="fixed inset-x-0 bottom-0 z-20">
         <div className="mx-auto max-w-7xl px-6 pb-4">
           <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-950/90 backdrop-blur shadow-lg">
