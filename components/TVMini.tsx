@@ -21,7 +21,7 @@ export default function TVMini({ symbol = "BINANCE:BTCUSDT", dark = true }: { sy
         width: "100%",
         height: 180,
         locale: "en",
-        dateRange: "1D",
+        dateRange: "1H",
         colorTheme: dark ? "dark" : "light",
         isTransparent: true,
         autosize: true,
