@@ -9,8 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/pg": "^8.15.5",
     "classnames": "^2.5.1",
+    "mysql2": "^3.14.3",
     "next": "15.5.0",
+    "pg": "^8.16.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-markdown": "^10.1.0",
