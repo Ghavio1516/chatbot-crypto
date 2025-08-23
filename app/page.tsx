@@ -5,8 +5,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import clsx from "classnames";
-//import TradingViewTape from "@/components/TradingViewTape";
-//import TradingViewWidget from "@/components/TradingViewWidget";
 import TVMini from "@/components/TVMini";
 
 type Message = { id: string; role: "user" | "assistant" | "system"; content: string };
@@ -47,22 +45,16 @@ function safeUUID(): string {
 
   if (hasCrypto) {
     const c = (globalThis as { crypto: Crypto }).crypto;
-
-    // gunakan getRandomValues kalau tersedia
     if (typeof c.getRandomValues === "function") {
       const bytes = new Uint8Array(16);
       c.getRandomValues(bytes);
-      // RFC4122 v4
       bytes[6] = (bytes[6] & 0x0f) | 0x40;
       bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
       const toHex = (n: number) => n.toString(16).padStart(2, "0");
       const b = Array.from(bytes, toHex).join("");
       return `${b.slice(0, 8)}-${b.slice(8, 12)}-${b.slice(12, 16)}-${b.slice(16, 20)}-${b.slice(20)}`;
     }
   }
-
-  // fallback universal (tanpa crypto)
   return `id_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
@@ -79,9 +71,37 @@ export default function Page() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // auto-scroll ke bawah
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length, loading]);
+
+  // === FETCH riwayat chat dari Postgres (tabel n8n_chat_histories) ===
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const sid = getUserId();
+        const res = await fetch(`/api/messages?sessionId=${encodeURIComponent(sid)}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return; // silent fail
+        const data = (await res.json()) as { messages?: Array<{ id: string; role: "user" | "assistant"; content: string }> };
+        if (data?.messages && data.messages.length) {
+          // gabungkan setelah system message (hindari duplikat system)
+          setMessages((prev) => {
+            const [, ...rest] = prev; // buang semua selain system? tidak, kita jaga urutan: prev[0] = system
+            return [prev[0], ...(data.messages ?? [])];
+          });
+        }
+      } catch (e) {
+        // abaikan kalau gagal; UI tetap jalan
+        console.warn("fetch history failed:", e);
+      }
+    };
+    load();
+    // hanya saat mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const send = async () => {
     const prompt = input.trim();
@@ -110,6 +130,7 @@ export default function Page() {
         output = `⚠️ HTTP ${res.status} dari server.`;
       }
 
+      if (!output) output = EXAMPLE;
       setMessages((m) => [...m, { id: safeUUID(), role: "assistant", content: output }]);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
