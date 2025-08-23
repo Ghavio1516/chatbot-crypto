@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     );
 
     // --- TAMBAHKAN LOG INI ---
-    console.log("[/api/messages] Query Result Rows:", rows); 
+    //console.log("[/api/messages] Query Result Rows:", rows); 
     // -------------------------
 
     // Peta ke format front-end kamu: { id, role, content }
