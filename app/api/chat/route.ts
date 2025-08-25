@@ -1,39 +1,39 @@
-import { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth"; 
+import { query } from "@/lib/db";
 
-const ENDPOINT = process.env.N8N_WEBHOOK!;
+const N8N_WEBHOOK = process.env.N8N_WEBHOOK;
 
-function errMsg(e: unknown) {
-  return e instanceof Error ? e.message : String(e);
-}
+export async function POST(req: Request) {
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ success: false, message: "User not logged in" }, { status: 401 });
+  }
 
-export async function POST(req: NextRequest) {
+  const { prompt } = await req.json();
+  if (!prompt) {
+    return NextResponse.json({ success: false, message: "Prompt is required" }, { status: 400 });
+  }
+
   try {
-    const { prompt, sessionId, userId } = await req.json();
-
-    if (!prompt || typeof prompt !== "string") {
-      return Response.json({ success: false, output: "Prompt wajib diisi." }, { status: 400 });
-    }
-
-    const res = await fetch(ENDPOINT, {
+    const response = await fetch(N8N_WEBHOOK, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, sessionId, userId }),
-      signal: AbortSignal.timeout(300_000) // 5 menit
+      body: JSON.stringify({
+        prompt,
+        userId: user.id,  
+      }),
     });
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      return Response.json({ success: false, output: `Upstream ${res.status}: ${text}` }, { status: 502 });
+    if (!response.ok) {
+      const text = await response.text();
+      return NextResponse.json({ success: false, output: `N8N error: ${text}` }, { status: 502 });
     }
 
-    const ct = res.headers.get("content-type") || "";
-    if (ct.includes("application/json")) {
-      return Response.json(await res.json());
-    }
-
-    const text = await res.text();
-    return Response.json({ success: true, output: text });
-  } catch (e: unknown) {
-    return Response.json({ success: false, output: errMsg(e) }, { status: 500 });
+    const responseBody = await response.json();
+    return NextResponse.json({ success: true, output: responseBody });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ success: false, message: "Error connecting to N8N" }, { status: 500 });
   }
 }

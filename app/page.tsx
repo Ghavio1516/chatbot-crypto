@@ -6,6 +6,8 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import clsx from "classnames";
 import TVMini from "@/components/TVMini";
+import LogoutButton from "@/components/LogoutButton";
+import { useRouter } from "next/navigation"; 
 
 type Message = { id: string; role: "user" | "assistant" | "system"; content: string };
 
@@ -19,21 +21,25 @@ function getSessionId() {
   try {
     const s = localStorage.getItem("sid");
     if (s) return s;
-    const n = `sid_${safeUUID()}`;
+    const n = `sid_${getUserId()}`;
     localStorage.setItem("sid", n);
     return n;
   } catch {
-    return `sid_${Math.random().toString(36).slice(2)}`;
+    return `sid_${getUserId()}`;
   }
 }
 
 function getUserId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
   const name = "uid=";
   const parts = document.cookie.split(";").map((s) => s.trim());
   const found = parts.find((p) => p.startsWith(name));
   if (found) return found.slice(name.length);
 
-  const uid = `u_${safeUUID()}`;
+  const uid = `${safeUUID()}`;
   document.cookie = `uid=${uid}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
   return uid;
 }
@@ -61,7 +67,7 @@ function safeUUID(): string {
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: safeUUID(),
+      id: getUserId(), // Gunakan `userId` langsung
       role: "system",
       content: "Halo! Tanyakan apa saja tentang Ethereum",
     },
@@ -78,36 +84,32 @@ export default function Page() {
 
   // === FETCH riwayat chat dari Postgres (tabel n8n_chat_histories) ===
   useEffect(() => {
+    const sid = getUserId(); // Panggil di client-side untuk menghindari ReferenceError
     const load = async () => {
       try {
-        const sid = getUserId();
         const res = await fetch(`/api/messages?sessionId=${encodeURIComponent(sid)}`, {
           cache: "no-store",
         });
         if (!res.ok) return; // silent fail
         const data = (await res.json()) as { messages?: Array<{ id: string; role: "user" | "assistant"; content: string }> };
         if (data?.messages && data.messages.length) {
-          // gabungkan setelah system message (hindari duplikat system)
           setMessages((prev) => {
-            const [, ...rest] = prev; // buang semua selain system? tidak, kita jaga urutan: prev[0] = system
+            const [, ...rest] = prev;
             return [prev[0], ...(data.messages ?? [])];
           });
         }
       } catch (e) {
-        // abaikan kalau gagal; UI tetap jalan
         console.warn("fetch history failed:", e);
       }
     };
     load();
-    // hanya saat mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const send = async () => {
     const prompt = input.trim();
     if (!prompt || loading) return;
 
-    setMessages((m) => [...m, { id: safeUUID(), role: "user", content: prompt }]);
+    setMessages((m) => [...m, { id: getUserId(), role: "user", content: prompt }]);
     setInput("");
     setLoading(true);
 
@@ -131,10 +133,10 @@ export default function Page() {
       }
 
       if (!output) output = EXAMPLE;
-      setMessages((m) => [...m, { id: safeUUID(), role: "assistant", content: output }]);
+      setMessages((m) => [...m, { id: getUserId(), role: "assistant", content: output }]);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      setMessages((m) => [...m, { id: safeUUID(), role: "assistant", content: "⚠️ Gagal terhubung: " + msg }]);
+      setMessages((m) => [...m, { id: getUserId(), role: "assistant", content: "⚠️ Gagal terhubung: " + msg }]);
     } finally {
       setLoading(false);
       inputRef.current?.focus();
@@ -154,6 +156,7 @@ export default function Page() {
         <div className="mx-auto max-w-7xl px-6 h-14 flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500" />
           <h1 className="font-semibold tracking-tight">AI by Ghavio</h1>
+          <LogoutButton />
           <span className="ml-auto text-xs text-neutral-500">
             Copyright <code>2025</code>
           </span>
@@ -165,8 +168,8 @@ export default function Page() {
           <div className="lg:col-span-8">
             <div ref={scrollRef} className="h-[calc(100vh-10rem)] overflow-y-auto rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 shadow-sm">
               <ul className="p-4 md:p-6 space-y-6 pb-32">
-                {messages.map((m) => (
-                  <li key={m.id} className="flex items-start gap-3">
+                {messages.map((m, index) => (
+                  <li key={`${m.id}-${index}`} className="flex items-start gap-3">
                     <div
                       className={clsx(
                         "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white",
@@ -182,7 +185,8 @@ export default function Page() {
                       {m.role === "assistant" ? "A" : m.role === "user" ? "U" : "S"}
                     </div>
 
-                    <article className={clsx(
+                    <article
+                      className={clsx(
                         "max-w-[85%] rounded-2xl px-4 py-3 markdown",
                         m.role === "assistant"
                           ? "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/60"
@@ -192,12 +196,12 @@ export default function Page() {
                       )}
                     >
                       {m.role === "assistant" ? (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                          {m.content}
-                        </ReactMarkdown>
-                      ) : (
-                        <p className="whitespace-pre-wrap">{m.content}</p>
-                      )}
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                        {typeof m.content === "string" ? m.content : m.content?.output || JSON.stringify(m.content)}
+                      </ReactMarkdown>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{typeof m.content === "string" ? m.content : m.content?.output || JSON.stringify(m.content)}</p>
+                    )}
                     </article>
                   </li>
                 ))}
