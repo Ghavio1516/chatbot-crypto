@@ -61,5 +61,11 @@ export async function getSessionUser() {
 
 export async function clearSession() {
   const cookieStore = await cookies();
+  
+  // Hapus cookie 'session'
   cookieStore.set(SESSION_COOKIE, "", { path: "/", maxAge: 0 });
+
+  // Hapus cookie 'userId'
+  cookieStore.set("userId", "", { path: "/", maxAge: 0 });
 }
+
