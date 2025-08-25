@@ -5,13 +5,15 @@ const SESSION_COOKIE = "session";
 const isProd = process.env.NODE_ENV === "production";
 
 export async function setSession(userId: string) {
+  const cookieStore = await cookies();  // Menunggu cookies() sebelum digunakan
+
   const { rows } = await query<{ token: string }>(
     "INSERT INTO sessions (user_id, expires) VALUES ($1, NOW() + INTERVAL '30 days') RETURNING token",
     [userId]
   );
   const token = rows[0].token;
 
-  cookies().set({
+  cookieStore.set({
     name: SESSION_COOKIE,
     value: token,
     httpOnly: true,
@@ -20,14 +22,22 @@ export async function setSession(userId: string) {
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
+
+  // Set userId in a separate cookie to track the user's identity
+  cookieStore.set({
+    name: "userId",
+    value: userId,
+    httpOnly: false, // userId will be accessible client-side
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
 }
 
-export async function clearSession() {
-  cookies().set(SESSION_COOKIE, "", { path: "/", maxAge: 0 });
-}
 
 export async function getSessionUser() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();  // Memastikan cookies() dipanggil dengan await
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
   const { rows } = await query<{ user_id: string; expires: Date }>(
@@ -47,4 +57,9 @@ export async function getSessionUser() {
     [sess.user_id]
   );
   return user.rows[0] ?? null;
+}
+
+export async function clearSession() {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, "", { path: "/", maxAge: 0 });
 }

@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Email atau password salah" }, { status: 401 });
     }
 
-    await setSession(user.id);
+    await setSession(user.id); // Menyimpan user ID ke sesi menggunakan session cookie
     return NextResponse.json({ success: true, userId: user.id });
   } catch (e) {
     console.error(e);

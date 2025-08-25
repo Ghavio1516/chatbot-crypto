@@ -16,13 +16,15 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("sessionId");
 
+  console.log("Session ID yang diterima:", sessionId);  // Debugging log
+
   if (!sessionId) {
     return NextResponse.json(
       { error: "sessionId is required" },
       { status: 400 }
     );
   }
-  console.log(sessionId)
+
   try {
     const { rows } = await pool.query<{
       id: number;

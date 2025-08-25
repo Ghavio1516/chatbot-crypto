@@ -7,7 +7,7 @@ import rehypeSanitize from "rehype-sanitize";
 import clsx from "classnames";
 import TVMini from "@/components/TVMini";
 import LogoutButton from "@/components/LogoutButton";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 
 type Message = { id: string; role: "user" | "assistant" | "system"; content: string };
 
@@ -18,15 +18,9 @@ Server tidak mengirim output, jadi ini contoh.
 `;
 
 function getSessionId() {
-  try {
-    const s = localStorage.getItem("sid");
-    if (s) return s;
-    const n = `sid_${getUserId()}`;
-    localStorage.setItem("sid", n);
-    return n;
-  } catch {
-    return `sid_${getUserId()}`;
-  }
+  // Menggunakan ID user dari cookie untuk session ID
+  const userId = getUserId();
+  return userId ? `sid_${userId}` : "sid_guest"; // Pastikan ID yang valid digunakan
 }
 
 function getUserId() {
@@ -34,40 +28,24 @@ function getUserId() {
     return "";
   }
 
-  const name = "uid=";
+  const name = "userId=";
   const parts = document.cookie.split(";").map((s) => s.trim());
   const found = parts.find((p) => p.startsWith(name));
-  if (found) return found.slice(name.length);
-
-  const uid = `${safeUUID()}`;
-  document.cookie = `uid=${uid}; Path=/; Max-Age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-  return uid;
-}
-
-function safeUUID(): string {
-  const hasCrypto =
-    typeof globalThis !== "undefined" &&
-    typeof (globalThis as { crypto?: Crypto }).crypto !== "undefined";
-
-  if (hasCrypto) {
-    const c = (globalThis as { crypto: Crypto }).crypto;
-    if (typeof c.getRandomValues === "function") {
-      const bytes = new Uint8Array(16);
-      c.getRandomValues(bytes);
-      bytes[6] = (bytes[6] & 0x0f) | 0x40;
-      bytes[8] = (bytes[8] & 0x3f) | 0x80;
-      const toHex = (n: number) => n.toString(16).padStart(2, "0");
-      const b = Array.from(bytes, toHex).join("");
-      return `${b.slice(0, 8)}-${b.slice(8, 12)}-${b.slice(12, 16)}-${b.slice(16, 20)}-${b.slice(20)}`;
-    }
+  if (found) {
+    const userId = found.slice(name.length);
+    console.log("userId yang ditemukan di cookie:", userId);  // Debugging log
+    return userId;
   }
-  return `id_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+
+  console.error("userId cookie tidak ditemukan!");  // Log jika cookie tidak ditemukan
+  return "";
 }
+
 
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: getUserId(), // Gunakan `userId` langsung
+      id: getUserId(), // Menggunakan userId dari cookie
       role: "system",
       content: "Halo! Tanyakan apa saja tentang Ethereum",
     },
@@ -84,14 +62,26 @@ export default function Page() {
 
   // === FETCH riwayat chat dari Postgres (tabel n8n_chat_histories) ===
   useEffect(() => {
-    const sid = getUserId(); // Panggil di client-side untuk menghindari ReferenceError
+    const sid = getUserId();  // Ambil sessionId dari cookie
+    console.log("Session ID yang dikirim ke API:", sid);  // Debugging log
+
     const load = async () => {
       try {
+        if (!sid) {
+          console.error("sessionId kosong!");  // Log jika sessionId kosong
+          return;
+        }
+
         const res = await fetch(`/api/messages?sessionId=${encodeURIComponent(sid)}`, {
           cache: "no-store",
         });
-        if (!res.ok) return; // silent fail
-        const data = (await res.json()) as { messages?: Array<{ id: string; role: "user" | "assistant"; content: string }> };
+
+        if (!res.ok) {
+          console.error("Gagal fetch riwayat:", res.status);  // Log jika status tidak ok
+          return;
+        }
+        
+        const data = await res.json();
         if (data?.messages && data.messages.length) {
           setMessages((prev) => {
             const [, ...rest] = prev;
