@@ -43,6 +43,14 @@ function getUserId() {
 
 
 export default function Page() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const userId = getUserId(); // Mengambil userId dari cookies
+    if (!userId) {
+      router.push("/login");  // Jika userId kosong, redirect ke halaman login
+    }
+  }, [router]);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: getUserId(), // Menggunakan userId dari cookie

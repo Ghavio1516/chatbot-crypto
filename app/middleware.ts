@@ -2,16 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 export async function middleware(req: NextRequest) {
-  const cookie = cookies().get('uid'); // Mendapatkan `uid` dari cookie
-  if (!cookie) {
-    // Jika `uid` tidak ada, redirect ke halaman login
+  const cookieStore = await cookies();
+  const userId = cookieStore.get('userId')?.value;  // Mendapatkan userId dari cookies
+
+  // Cek jika userId kosong
+  if (!userId) {
+    console.log("Session tidak ditemukan, redirect ke login");
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
   // Cek jika user valid di backend dengan `auth/me`
   const res = await fetch(`${process.env.BASE_URL}/api/auth/me`, {
     headers: {
-      'Authorization': `Bearer ${cookie.value}`,
+      'Authorization': `Bearer ${userId}`,
     },
   });
 
@@ -25,8 +28,9 @@ export async function middleware(req: NextRequest) {
 
   // Jika backend merespons false (user tidak valid)
   if (!data.success || !data.authenticated) {
+    console.log("User tidak valid, redirect ke login");
     const cookieStore = await cookies();
-    cookieStore.set('uid', '', { path: '/', maxAge: 0 });  // Hapus cookie 'uid'
+    cookieStore.set('userId', '', { path: '/', maxAge: 0 });  // Hapus cookie 'userId'
     cookieStore.set('session', '', { path: '/', maxAge: 0 }); // Hapus cookie 'session'
 
     return NextResponse.redirect(new URL('/login', req.url)); // Redirect ke halaman login
