@@ -194,10 +194,10 @@ export default function Page() {
                     >
                       {m.role === "assistant" ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                        {typeof m.content === "string" ? m.content : m.content?.output || JSON.stringify(m.content)}
+                        {m.content}
                       </ReactMarkdown>
                     ) : (
-                      <p className="whitespace-pre-wrap">{typeof m.content === "string" ? m.content : m.content?.output || JSON.stringify(m.content)}</p>
+                      <p className="whitespace-pre-wrap">{m.content}</p>
                     )}
                     </article>
                   </li>

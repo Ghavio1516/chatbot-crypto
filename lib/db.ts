@@ -21,6 +21,6 @@ export const pool = new Pool(
       }
 );
 
-export async function query<T = User>(text: string, params?: (string | number)[]): Promise<QueryResult<T>> {
+export async function query<T extends import("pg").QueryResultRow = User>(text: string, params?: (string | number)[]): Promise<QueryResult<T>> {
   return pool.query<T>(text, params);
 }
