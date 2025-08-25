@@ -1,4 +1,10 @@
-import { Pool } from "pg";
+import { Pool, QueryResult } from "pg";
+
+interface User {
+  id: string;
+  email: string;
+  display_name: string;
+}
 
 const hasDatabaseUrl = !!process.env.DATABASE_URL;
 
@@ -15,6 +21,6 @@ export const pool = new Pool(
       }
 );
 
-export async function query<T = any>(text: string, params?: any[]) {
+export async function query<T = User>(text: string, params?: (string | number)[]): Promise<QueryResult<T>> {
   return pool.query<T>(text, params);
 }
