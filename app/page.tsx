@@ -92,7 +92,6 @@ export default function Page() {
         const data = await res.json();
         if (data?.messages && data.messages.length) {
           setMessages((prev) => {
-            const [, ...rest] = prev;
             return [prev[0], ...(data.messages ?? [])];
           });
         }

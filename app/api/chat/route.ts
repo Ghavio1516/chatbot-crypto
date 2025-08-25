@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth"; 
-import { query } from "@/lib/db";
 
 const N8N_WEBHOOK = process.env.N8N_WEBHOOK;
 

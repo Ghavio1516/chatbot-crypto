@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";  // Jika Anda menggunakan database untuk sesi
 import { clearSession } from "@/lib/auth";  // Pastikan clearSession dipanggil untuk menghapus cookies
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const cookieStore = await cookies();
 
   // Ambil token dari cookies
