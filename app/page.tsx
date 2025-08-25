@@ -166,15 +166,15 @@ export default function Page() {
             <div ref={scrollRef} className="h-[calc(100vh-10rem)] overflow-y-auto rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 shadow-sm">
               <ul className="p-4 md:p-6 space-y-6 pb-32">
                 {messages.map((m, index) => (
-                  <li key={`${m.id}-${index}`} className="flex items-start gap-3">
+                    <li key={`${m.id}-${index}`} className="flex items-start gap-3">
                     <div
                       className={clsx(
-                        "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white",
-                        m.role === "assistant"
-                          ? "bg-emerald-500"
-                          : m.role === "user"
-                          ? "bg-indigo-500"
-                          : "bg-neutral-400"
+                      "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white",
+                      m.role === "assistant"
+                        ? "bg-emerald-500"
+                        : m.role === "user"
+                        ? "bg-indigo-500"
+                        : "bg-neutral-400"
                       )}
                       title={m.role}
                       aria-label={m.role}
@@ -184,23 +184,39 @@ export default function Page() {
 
                     <article
                       className={clsx(
-                        "max-w-[85%] rounded-2xl px-4 py-3 markdown",
-                        m.role === "assistant"
-                          ? "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/60"
-                          : m.role === "user"
-                          ? "bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/60 dark:border-indigo-800/60 ml-auto"
-                          : "bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800"
+                      "max-w-[85%] rounded-2xl px-4 py-3 markdown",
+                      m.role === "assistant"
+                        ? "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/60"
+                        : m.role === "user"
+                        ? "bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/60 dark:border-indigo-800/60 ml-auto"
+                        : "bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800"
                       )}
                     >
                       {m.role === "assistant" ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                        {m.content}
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                      >
+                        {(() => {
+                        // If m.content is a JSON string with { output: ... }, extract output
+                        try {
+                          const parsed = JSON.parse(m.content);
+                          if (parsed && typeof parsed.output === "string") {
+                          return parsed.output;
+                          }
+                        } catch {
+                          // Not JSON, just return as is
+                        }
+                        return typeof m.content === "string"
+                          ? m.content
+                          : "```\n" + JSON.stringify(m.content, null, 2) + "\n```";
+                        })()}
                       </ReactMarkdown>
-                    ) : (
+                      ) : (
                       <p className="whitespace-pre-wrap">{m.content}</p>
-                    )}
+                      )}
                     </article>
-                  </li>
+                    </li>
                 ))}
                 {loading && (
                   <li className="flex items-start gap-3">
