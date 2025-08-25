@@ -14,6 +14,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: "Prompt is required" }, { status: 400 });
   }
 
+  if (!N8N_WEBHOOK) {
+    return NextResponse.json({ success: false, message: "N8N_WEBHOOK is not defined" }, { status: 500 });
+  }
   try {
     const response = await fetch(N8N_WEBHOOK, {
       method: "POST",
